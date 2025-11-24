@@ -1,0 +1,91 @@
+<script type="text/javascript">
+    RED.nodes.registerType('engine-set-dataitem', {
+        category: 'LECS Energy',
+        color: '#3FADB5',
+        defaults: {
+            name: { value: "" },
+            host: { value: "", required: true },
+            port: { value: 7200, required: true, validate: RED.validators.number() },
+            dataItemId: { value: "", required: true }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "font-awesome/fa-pencil",
+        label: function() {
+            return this.name || this.dataItemId || "engine-set-dataitem";
+        },
+        paletteLabel: "Set Engine Data Item"
+    });
+</script>
+
+<script type="text/html" data-template-name="engine-set-dataitem">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-host"><i class="fa fa-server"></i> Host</label>
+        <input type="text" id="node-input-host" placeholder="192.168.5.90">
+    </div>
+    <div class="form-row">
+        <label for="node-input-port"><i class="fa fa-plug"></i> Port</label>
+        <input type="number" id="node-input-port" placeholder="7200">
+    </div>
+    <div class="form-row">
+        <label for="node-input-dataItemId"><i class="fa fa-key"></i> Data Item ID</label>
+        <input type="text" id="node-input-dataItemId" placeholder="MyComponent.MyDataItem">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="engine-set-dataitem">
+    <p>Sets a data item value on a SolutionEngine device.</p>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">string | number</span></dt>
+        <dd>The value to set for the data item</dd>
+        <dt class="optional">value <span class="property-type">string | number</span></dt>
+        <dd>Alternative to payload for specifying the value</dd>
+        <dt class="optional">host <span class="property-type">string</span></dt>
+        <dd>Override the configured host address</dd>
+        <dt class="optional">port <span class="property-type">number</span></dt>
+        <dd>Override the configured port</dd>
+        <dt class="optional">dataItemId <span class="property-type">string</span></dt>
+        <dd>Override the configured data item ID</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload.success <span class="property-type">boolean</span></dt>
+        <dd>Whether the set operation succeeded</dd>
+        <dt>payload.dataItemId <span class="property-type">string</span></dt>
+        <dd>The data item ID that was set</dd>
+        <dt>payload.value <span class="property-type">string</span></dt>
+        <dd>The value that was sent</dd>
+        <dt>payload.statusCode <span class="property-type">number</span></dt>
+        <dd>HTTP status code from the response</dd>
+        <dt class="optional">response <span class="property-type">object</span></dt>
+        <dd>The response body from the server (if any)</dd>
+    </dl>
+
+    <h3>Details</h3>
+    <p>This node sends an HTTP PUT request to the SolutionEngine API to set a data item value.</p>
+
+    <p><strong>Endpoint:</strong> <code>PUT http://{host}:{port}/api/v6/agent/data</code></p>
+
+    <p><strong>Request body (XML):</strong></p>
+    <pre>&lt;DataItems&gt;
+    &lt;DataItem dataItemId="DataItemId"&gt;
+        &lt;Value&gt;value&lt;/Value&gt;
+    &lt;/DataItem&gt;
+&lt;/DataItems&gt;</pre>
+
+    <p><strong>Note:</strong> This node only works with SolutionEngine devices, not generic MTConnect brokers.</p>
+
+    <p>The node shows status indicators:</p>
+    <ul>
+        <li><strong>Blue</strong> - Request in progress</li>
+        <li><strong>Green</strong> - Data item set successfully</li>
+        <li><strong>Red</strong> - Error occurred</li>
+    </ul>
+</script>

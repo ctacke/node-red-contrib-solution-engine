@@ -1,0 +1,113 @@
+<script type="text/javascript">
+    RED.nodes.registerType('mtconnect-dataitem', {
+        category: 'LECS Energy',
+        color: '#3FADB5',
+        defaults: {
+            name: { value: "" },
+            host: { value: "", required: true },
+            port: { value: 7200, required: true, validate: RED.validators.number() },
+            path: { value: "" },
+            dataItemId: { value: "", required: true }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "font-awesome/fa-database",
+        label: function() {
+            return this.name || this.dataItemId || "mtconnect-dataitem";
+        },
+        paletteLabel: "Read MTConnect Data Item"
+    });
+</script>
+
+<script type="text/html" data-template-name="mtconnect-dataitem">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-host"><i class="fa fa-server"></i> Host</label>
+        <input type="text" id="node-input-host" placeholder="192.168.5.90">
+    </div>
+    <div class="form-row">
+        <label for="node-input-port"><i class="fa fa-plug"></i> Port</label>
+        <input type="number" id="node-input-port" placeholder="5000">
+    </div>
+    <div class="form-row">
+        <label for="node-input-path"><i class="fa fa-folder-open"></i> Path</label>
+        <input type="text" id="node-input-path" placeholder="(optional, for generic brokers)">
+    </div>
+    <div class="form-row">
+        <label for="node-input-dataItemId"><i class="fa fa-key"></i> Data Item ID</label>
+        <input type="text" id="node-input-dataItemId" placeholder="EngineInfo.EngineID">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="mtconnect-dataitem">
+    <p>Reads a specific data item from an MTConnect endpoint. Supports both SolutionEngine and generic MTConnect brokers.</p>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">host <span class="property-type">string</span></dt>
+        <dd>Override the configured host address</dd>
+        <dt class="optional">port <span class="property-type">number</span></dt>
+        <dd>Override the configured port</dd>
+        <dt class="optional">path <span class="property-type">string</span></dt>
+        <dd>Override the configured path (for generic brokers)</dd>
+        <dt class="optional">dataItemId <span class="property-type">string</span></dt>
+        <dd>Override the configured data item ID</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">string</span></dt>
+        <dd>The value of the requested data item</dd>
+        <dt>dataItemId <span class="property-type">string</span></dt>
+        <dd>The data item ID that was queried</dd>
+        <dt>timestamp <span class="property-type">string</span></dt>
+        <dd>The MTConnect timestamp of the data item</dd>
+        <dt>sequence <span class="property-type">string</span></dt>
+        <dd>The MTConnect sequence number</dd>
+        <dt>name <span class="property-type">string</span></dt>
+        <dd>The friendly name of the data item</dd>
+    </dl>
+
+    <h3>Details</h3>
+    <p>This node automatically detects whether the target is a SolutionEngine or a generic MTConnect broker:</p>
+    <ul>
+        <li><strong>SolutionEngine</strong>: Uses <code>/api/v6/mtc/current</code></li>
+        <li><strong>Generic broker</strong>: Uses <code>/{path}/current</code> or <code>/current</code></li>
+    </ul>
+    <p>The broker type is cached after first detection for performance.</p>
+
+    <h4>Examples</h4>
+    <p><strong>SolutionEngine</strong> (path ignored):</p>
+    <ul>
+        <li>Host: <code>192.168.5.90</code>, Port: <code>7200</code></li>
+        <li>URL: <code>http://192.168.5.90:7200/api/v6/mtc/current</code></li>
+    </ul>
+    <p><strong>Generic broker</strong> (like Mazak demo):</p>
+    <ul>
+        <li>Host: <code>mtconnect.mazakcorp.com</code>, Port: <code>5610</code>, Path: (empty)</li>
+        <li>URL: <code>http://mtconnect.mazakcorp.com:5610/current</code></li>
+    </ul>
+
+    <p>The <strong>Data Item ID</strong> matches the <code>dataItemId</code> attribute in the MTConnect XML.
+    Examples:</p>
+    <ul>
+        <li><code>EngineInfo.EngineID</code> (SolutionEngine)</li>
+        <li><code>xpm</code> (Mazak demo)</li>
+    </ul>
+
+    <p>The node shows status indicators:</p>
+    <ul>
+        <li><strong>Blue</strong> - Request in progress</li>
+        <li><strong>Green</strong> - Data item found successfully</li>
+        <li><strong>Yellow</strong> - Data item not found in response</li>
+        <li><strong>Red</strong> - Connection or parse error</li>
+    </ul>
+
+    <h3>References</h3>
+    <ul>
+        <li><a href="https://www.mtconnect.org/">MTConnect Standard</a></li>
+    </ul>
+</script>

@@ -1,0 +1,21 @@
+{
+  "name": "node-red-contrib-solution-engine",
+  "version": "0.9.2",
+  "description": "Node-RED nodes for Solution Engine and MTConnect integration",
+  "keywords": [
+    "node-red",
+    "solutionengine",
+    "mtconnect",
+    "manufacturing",
+    "lecenergy",
+    "lecs"
+  ],
+  "node-red": {
+    "nodes": {
+      "mtconnect-dataitem": "mtconnect-dataitem.js",
+      "engine-set-dataitem": "engine-set-dataitem.js"
+    }
+  },
+  "author": "Chris Tacke",
+  "license": "MIT"
+}
