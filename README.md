@@ -8,6 +8,15 @@ Node-RED nodes for interacting with Solution Engine and MTConnect devices.
 
 ## Installation
 
+Install the package by first navigating to the local node-RED folder.
+
+On Windows this will likely be
+
+```powershell
+cd C:\Users\<my-user-name>\.node-red
+npm install node-red-contrib-your-node
+```
+or on Linux
 ```bash
 cd ~/.node-red
 npm install node-red-contrib-solution-engine

@@ -1,5 +1,41 @@
 module.exports = function(RED) {
     const http = require('http');
+    const https = require('https');
+
+    /**
+     * Normalize host input by handling protocol prefixes and trailing slashes
+     * @param {string} host - Host string (may include http://, https://, and/or trailing slashes)
+     * @returns {Object} { hostname: string, protocol: string, isHttps: boolean }
+     */
+    function normalizeHost(host) {
+        if (!host) return { hostname: '', protocol: 'http:', isHttps: false };
+
+        let hostname = host;
+        let protocol = 'http:';
+        let isHttps = false;
+
+        // Check for https:// prefix
+        if (hostname.startsWith('https://')) {
+            hostname = hostname.substring(8); // Remove 'https://'
+            protocol = 'https:';
+            isHttps = true;
+        }
+        // Check for http:// prefix
+        else if (hostname.startsWith('http://')) {
+            hostname = hostname.substring(7); // Remove 'http://'
+            protocol = 'http:';
+            isHttps = false;
+        }
+
+        // Strip trailing slashes
+        hostname = hostname.replace(/\/+$/, '');
+
+        return {
+            hostname: hostname,
+            protocol: protocol,
+            isHttps: isHttps
+        };
+    }
 
     /**
      * Escape special XML characters
@@ -24,14 +60,14 @@ module.exports = function(RED) {
 
         node.on('input', function(msg, send, done) {
             // Allow message to override config values
-            const host = msg.host || node.host;
+            const rawHost = msg.host || node.host;
             const port = msg.port || node.port;
             const dataItemId = msg.dataItemId || node.dataItemId;
 
             // Value comes from msg.payload or can be specified in msg.value
             const value = msg.value !== undefined ? msg.value : msg.payload;
 
-            if (!host) {
+            if (!rawHost) {
                 node.error("No host specified", msg);
                 if (done) done();
                 return;
@@ -51,6 +87,9 @@ module.exports = function(RED) {
 
             node.status({ fill: "blue", shape: "dot", text: "sending..." });
 
+            // Normalize the host to handle http://, https://, or no prefix
+            const { hostname, protocol, isHttps } = normalizeHost(rawHost);
+
             // Build the XML request body
             const body = `<DataItems>
     <DataItem dataItemId="${escapeXml(dataItemId)}">
@@ -59,7 +98,7 @@ module.exports = function(RED) {
 </DataItems>`;
 
             const options = {
-                hostname: host,
+                hostname: hostname,
                 port: port,
                 path: '/api/v6/agent/data',
                 method: 'POST',
@@ -69,9 +108,10 @@ module.exports = function(RED) {
                 }
             };
 
-            node.log(`POST to http://${host}:${port}/api/v6/agent/data with body: ${body}`);
+            node.log(`POST to ${protocol}//${hostname}:${port}/api/v6/agent/data with body: ${body}`);
 
-            const req = http.request(options, (res) => {
+            const httpModule = isHttps ? https : http;
+            const req = httpModule.request(options, (res) => {
                 let data = '';
 
                 res.on('data', (chunk) => {

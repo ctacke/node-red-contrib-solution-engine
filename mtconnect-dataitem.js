@@ -1,9 +1,45 @@
 module.exports = function(RED) {
     const http = require('http');
+    const https = require('https');
 
     // Cache for broker type detection (SolutionEngine vs generic)
     // Key: "host:port", Value: { isSolutionEngine: boolean }
     const brokerTypeCache = {};
+
+    /**
+     * Normalize host input by handling protocol prefixes and trailing slashes
+     * @param {string} host - Host string (may include http://, https://, and/or trailing slashes)
+     * @returns {Object} { hostname: string, protocol: string, isHttps: boolean }
+     */
+    function normalizeHost(host) {
+        if (!host) return { hostname: '', protocol: 'http:', isHttps: false };
+
+        let hostname = host;
+        let protocol = 'http:';
+        let isHttps = false;
+
+        // Check for https:// prefix
+        if (hostname.startsWith('https://')) {
+            hostname = hostname.substring(8); // Remove 'https://'
+            protocol = 'https:';
+            isHttps = true;
+        }
+        // Check for http:// prefix
+        else if (hostname.startsWith('http://')) {
+            hostname = hostname.substring(7); // Remove 'http://'
+            protocol = 'http:';
+            isHttps = false;
+        }
+
+        // Strip trailing slashes
+        hostname = hostname.replace(/\/+$/, '');
+
+        return {
+            hostname: hostname,
+            protocol: protocol,
+            isHttps: isHttps
+        };
+    }
 
     function MTConnectDataItemNode(config) {
         RED.nodes.createNode(this, config);
@@ -17,12 +53,12 @@ module.exports = function(RED) {
 
         node.on('input', function(msg, send, done) {
             // Allow message to override config values
-            const host = msg.host || node.host;
+            const rawHost = msg.host || node.host;
             const port = msg.port || node.port;
             const path = msg.path !== undefined ? msg.path : node.path;
             const dataItemId = msg.dataItemId || node.dataItemId;
 
-            if (!host) {
+            if (!rawHost) {
                 node.error("No host specified", msg);
                 if (done) done();
                 return;
@@ -36,21 +72,23 @@ module.exports = function(RED) {
 
             node.status({ fill: "blue", shape: "dot", text: "requesting..." });
 
-            const cacheKey = `${host}:${port}`;
+            // Normalize the host to handle http://, https://, or no prefix
+            const { hostname, protocol, isHttps } = normalizeHost(rawHost);
+            const cacheKey = `${hostname}:${port}`;
 
             // Check if we already know the broker type
             if (brokerTypeCache[cacheKey] !== undefined) {
                 node.log(`Using cached broker type: isSolutionEngine=${brokerTypeCache[cacheKey].isSolutionEngine}`);
-                const url = buildUrl(host, port, path, brokerTypeCache[cacheKey].isSolutionEngine);
-                fetchDataItem(node, url, dataItemId, msg, send, done);
+                const url = buildUrl(hostname, port, path, brokerTypeCache[cacheKey].isSolutionEngine, protocol);
+                fetchDataItem(node, url, dataItemId, msg, send, done, isHttps);
             } else {
                 // Detect broker type by trying SolutionEngine endpoint first
                 node.log(`Detecting broker type for ${cacheKey}...`);
-                detectBrokerType(host, port, (isSolutionEngine) => {
+                detectBrokerType(hostname, port, protocol, isHttps, (isSolutionEngine) => {
                     node.log(`Broker detection complete: isSolutionEngine=${isSolutionEngine}`);
                     brokerTypeCache[cacheKey] = { isSolutionEngine };
-                    const url = buildUrl(host, port, path, isSolutionEngine);
-                    fetchDataItem(node, url, dataItemId, msg, send, done);
+                    const url = buildUrl(hostname, port, path, isSolutionEngine, protocol);
+                    fetchDataItem(node, url, dataItemId, msg, send, done, isHttps);
                 });
             }
         });
@@ -63,17 +101,19 @@ module.exports = function(RED) {
     /**
      * Build the MTConnect current URL based on broker type
      */
-    function buildUrl(host, port, path, isSolutionEngine) {
+    function buildUrl(host, port, path, isSolutionEngine, protocol = 'http:') {
+        const baseUrl = `${protocol}//${host}:${port}`;
+
         if (isSolutionEngine) {
-            return `http://${host}:${port}/api/v6/mtc/current`;
+            return `${baseUrl}/api/v6/mtc/current`;
         } else if (path) {
             // Generic broker with custom path
             // Remove leading/trailing slashes for consistency
             const cleanPath = path.replace(/^\/+|\/+$/g, '');
-            return `http://${host}:${port}/${cleanPath}/current`;
+            return `${baseUrl}/${cleanPath}/current`;
         } else {
             // Generic broker at root
-            return `http://${host}:${port}/current`;
+            return `${baseUrl}/current`;
         }
     }
 
@@ -81,10 +121,11 @@ module.exports = function(RED) {
      * Detect if the broker is a SolutionEngine by checking the API endpoint
      * Must check response content because some brokers return 200 even for errors
      */
-    function detectBrokerType(host, port, callback) {
-        const testUrl = `http://${host}:${port}/api/v6/mtc/current`;
+    function detectBrokerType(host, port, protocol, isHttps, callback) {
+        const testUrl = `${protocol}//${host}:${port}/api/v6/mtc/current`;
+        const httpModule = isHttps ? https : http;
 
-        const req = http.get(testUrl, (res) => {
+        const req = httpModule.get(testUrl, (res) => {
             let data = '';
 
             res.on('data', (chunk) => {
@@ -119,9 +160,11 @@ module.exports = function(RED) {
     /**
      * Fetch the data item from the MTConnect endpoint
      */
-    function fetchDataItem(node, url, dataItemId, msg, send, done) {
+    function fetchDataItem(node, url, dataItemId, msg, send, done, isHttps = false) {
         node.log(`Fetching from: ${url}`);
-        http.get(url, (res) => {
+        const httpModule = isHttps ? https : http;
+
+        httpModule.get(url, (res) => {
             let data = '';
 
             res.on('data', (chunk) => {
